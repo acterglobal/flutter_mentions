@@ -250,7 +250,7 @@ class FlutterMentions extends StatefulWidget {
 
 class FlutterMentionsState extends State<FlutterMentions> {
   AnnotationEditingController? controller;
-  ValueNotifier<bool> showSuggestions = ValueNotifier(false);
+  bool showSuggestions = false;
   LengthMap? _selectedMention;
   String _pattern = '';
 
@@ -345,13 +345,13 @@ class FlutterMentionsState extends State<FlutterMentions> {
             element.str.toLowerCase().contains(RegExp(_pattern));
       });
 
-      showSuggestions.value = val != -1;
 
       if (widget.onSuggestionVisibleChanged != null) {
         widget.onSuggestionVisibleChanged!(val != -1);
       }
 
       setState(() {
+        showSuggestions = val != -1;
         _selectedMention = val == -1 ? null : lengthMap[val];
       });
     }
@@ -416,35 +416,29 @@ class FlutterMentionsState extends State<FlutterMentions> {
 
     return Container(
       child: PortalTarget(
-        anchor: Aligned.center,
-        // childAnchor: widget.suggestionPosition == SuggestionPosition.Bottom
-        //     ? Alignment.bottomCenter
-        //     : Alignment.topCenter,
-        portalFollower: ValueListenableBuilder(
-          valueListenable: showSuggestions,
-          builder: (BuildContext context, bool show, Widget? child) {
-            return show && !widget.hideSuggestionList
-                ? OptionList(
-                    suggestionListHeight: widget.suggestionListHeight,
-                    suggestionListWidth: widget.suggestionListWidth ??
-                        MediaQuery.of(context).size.width,
-                    suggestionBuilder: list.suggestionBuilder,
-                    suggestionListDecoration: widget.suggestionListDecoration,
-                    data: list.data.where((element) {
-                      final ele = element['display'].toLowerCase();
-                      final str = _selectedMention!.str
-                          .toLowerCase()
-                          .replaceAll(RegExp(_pattern), '');
+        anchor: widget.suggestionPosition == SuggestionPosition.Bottom ? Aligned(
+          target:Alignment.topCenter,
+          follower: Alignment.bottomCenter
+          ) : Aligned(follower: Alignment.bottomCenter, target: Alignment.topCenter),
+        visible: (!widget.hideSuggestionList && showSuggestions),
+        portalFollower: OptionList(
+            suggestionListHeight: widget.suggestionListHeight,
+            suggestionListWidth: widget.suggestionListWidth ??
+                MediaQuery.of(context).size.width,
+            suggestionBuilder: list.suggestionBuilder,
+            suggestionListDecoration: widget.suggestionListDecoration,
+            data: _selectedMention != null ? list.data.where((element) {
+              final ele = element['display'].toLowerCase();
+              final str = _selectedMention!.str
+                  .toLowerCase()
+                  .replaceAll(RegExp(_pattern), '');
 
-                      return ele == str ? false : ele.contains(str);
-                    }).toList(),
-                    onTap: (value) {
-                      addMention(value, list);
-                      showSuggestions.value = false;
-                    },
-                  )
-                : Container();
-          },
+              return ele == str ? false : ele.contains(str);
+            }).toList() : [],
+            onTap: (value) {
+              addMention(value, list);
+              setState(() => showSuggestions = false);
+            },
         ),
         child: Row(
           children: [
